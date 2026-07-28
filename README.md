@@ -1,36 +1,70 @@
-# 🚗 Road Safety & Smart Mobility Challenge
-> **Project:** Smart Mobility Challenge (Hack the Streets with AI)  
-> **Used for:** SAIG  
-> **Topic:** ยกระดับความปลอดภัย ลดอุบัติเหตุ และแก้ปัญหาการเดินทางบนท้องถนน  
+# Thai Road Safety Intelligence
 
----
+โปรเจกต์นี้ทำขึ้นในฐานะงาน Smart Mobility Challenge โดยนำข้อมูลอุบัติเหตุ
+บนท้องถนนในประเทศไทย 151,778 เหตุการณ์ (ปี 2019–2025) มาสร้างเป็น
+web application ที่ช่วยวิเคราะห์จุดเสี่ยงและสนับสนุนการตัดสินใจเชิงนโยบาย
 
-## 📌 About The Project
-โปรเจกต์นี้จัดทำขึ้นเพื่อใช้ในการประเมินและยื่นสมัครเข้าแล็บ **SAIG** โดยได้รับแรงบันดาลใจจากโจทย์ **Smart Mobility Challenge** ซึ่งเน้นการนำเทคโนโลยี AI และการวิเคราะห์ข้อมูลมาช่วยแก้ไข **Pain Point** เรื่องอุบัติเหตุและความปลอดภัยบนท้องถนนในประเทศไทย
+## Dataset ที่ใช้
 
-ปัจจุบันโปรเจกต์อยู่ในช่วง ทดลองวิจัยเปรียบเทียบประสิทธิภาพหลายๆ โมเดล สำหรับ repository นี้จึงเน้นแสดงกระบวนการ **Data Pipeline, Data Cleaning, EDA (Exploratory Data Analysis)** รวมถึงการทำ Feature Engineering เพื่อเตรียมข้อมูลอุบัติเหตุให้พร้อมที่สุดก่อนนำไป Train โมเดลครับ
+- **thai_accidental_dataset.csv** (Dataset 1) — สถิติอุบัติเหตุทั่วประเทศ
+  พร้อมพิกัด lat/long, สาเหตุ, ลักษณะถนน, สภาพอากาศ, จำนวนผู้บาดเจ็บ/เสียชีวิต
+- **Thai Holiday Calendar** (holidays library) — ข้อมูลวันหยุดราชการไทย
+  เพิ่มเป็น feature เสริมในโมเดล
 
----
+## สิ่งที่ app ทำได้
 
-## 🛠️ Data Pipeline & Data Cleaning Process
-ไฟล์ข้อมูลที่ใช้เป็น dataset อุบัติเหตุบนท้องถนนจากแล็บ/หน่วยงาน เพื่อนำมาสำรวจและเตรียมข้อมูลผ่านสคริปต์ `data_prep.py` และ `explore.ipynb` โดยมีขั้นตอนสำคัญดังนี้:
+**แผนที่ interactive** — heatmap จุดเสี่ยงทั่วประเทศ คลิกจุดใดก็ได้เพื่อดูสาเหตุหลัก
+และคำแนะนำเชิงมาตรการสำหรับพื้นที่นั้น
 
-1. **Handling Missing & Invalid Data:**
-   * ตรวจสอบและจัดการค่าสูญหาย (Missing values) ในคอลัมน์สำคัญ เช่น พิกัดตำแหน่ง, เวลาเกิดเหตุ, และประเภทยานพาหนะ
-2. **Feature Engineering & Transformation:**
-   * แปลงข้อมูลวันที่และเวลาให้อยู่ในฟอร์แมตมาตรฐาน (Datetime Extraction) เพื่อดูแนวโน้มช่วงเวลาเสี่ยง
-   * สร้าง Feature เพิ่มเติมสำหรับการจำแนกความรุนแรงของอุบัติเหตุ (Accident Severity Classification)
-3. **Geospatial & Visualization Preparation:**
-   * ประมวลผลพิกัดละติจูด/ลองจิจูด เพื่อนำไปสร้าง Map Visualization (`test_map.html`, `heatmap_full.html`) สำหรับดูจุดเสี่ยง (Blackspots) บนท้องถนน
+**โมเดลทำนายความรุนแรง** — XGBoost binary classifier ทำนายว่าอุบัติเหตุจะ
+รุนแรงถึงขั้นมีผู้เสียชีวิตหรือไม่ จาก 10 features (จังหวัด, ประเภทยานพาหนะ,
+ลักษณะถนน, สาเหตุ, สภาพอากาศ, ช่วงเวลา, หน่วยงาน, กลางคืน, วันหยุด)
 
----
+**AI Magic Search** — ค้นหาด้วยภาษาธรรมชาติ เช่น "ถนนมืดมองไม่เห็น" หรือ
+"คนขับหลับคาพวงมาลัย" ระบบใช้ multilingual sentence embedding + hybrid scoring
+หาหมวดสาเหตุที่ใกล้เคียงที่สุดจาก 43 หมวดในข้อมูลจริง
 
-## 📂 Repository Structure
-```text
-├── data_prep.py          # สคริปต์หลักสำหรับ Clean ข้อมูลและทำ Feature Engineering
-├── explore.ipynb         # Jupyter Notebook สำหรับทำการสำรวจข้อมูล (EDA)
-├── model.ipynb           # Notebook สำหรับทดลองสร้างและวัดผลโมเดลต่างๆ
-├── app.py                # Dashboard/Web Application เบื้องต้น (Streamlit)
-├── heatmap_full.html     # Interactive Visualization แสดงจุดเสี่ยงอุบัติเหตุ
-├── README.md             # เอกสารอธิบายโปรเจกต์
-└── .gitignore            # กำหนดไฟล์ที่ไม่ต้องเอาขึ้น Git (Dataset / Saved Models)
+## ผลลัพธ์โมเดล
+
+| | ค่าที่ได้ |
+|---|---|
+| Recall (ตาย) | 0.78 |
+| Precision (ตาย) | 0.20 |
+| Threshold | 0.4 |
+| AI Search Top-3 accuracy | 96% (24/25 test cases) |
+
+threshold 0.4 เลือกจากการวิเคราะห์ Precision-Recall trade-off
+เนื่องจาก use case นี้ยอม false positive เพื่อแลกกับการไม่พลาดจุดเสี่ยงจริง
+
+## วิธีรัน
+
+```bash
+git clone hhttps://github.com/skibidiqilow/roadsudhod.git
+cd road-safety-project
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+ในกรณีที่เปิดไม่ได้ (segfault)
+PYTORCH_ENABLE_MPS_FALLBACK=1 OMP_NUM_THREADS=1 streamlit run app.py
+
+หมายเหตุ: ต้องมีไฟล์ `thai_accidental_dataset.csv` วางไว้ในโฟลเดอร์เดียวกัน
+(ไม่ได้รวมใน repo เนื่องจากเป็น dataset ของผู้จัดการแข่งขัน)
+
+และต้องมีไฟล์ `accident_risk_model.pkl` กับ `model_columns.pkl`
+ซึ่ง generate ได้จากการรัน `model.ipynb` ตั้งแต่ต้นจนจบ
+
+## โครงสร้างไฟล์
+
+```
+road-safety-project/
+├── app.py                    # Streamlit web application
+├── data_prep.py              # Data cleaning pipeline (shared)
+├── model.ipynb               # EDA + model training notebook
+├── accident_risk_model.pkl   # Trained XGBoost model
+├── model_columns.pkl         # Feature columns list
+├── requirements.txt
+└── README.md
+```
