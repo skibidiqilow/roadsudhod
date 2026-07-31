@@ -54,7 +54,7 @@ PYTORCH_ENABLE_MPS_FALLBACK=1 OMP_NUM_THREADS=1 streamlit run app.py
 
 
 หมายเหตุ: ต้องมีไฟล์ `thai_accidental_dataset.csv` วางไว้ในโฟลเดอร์เดียวกัน
-(ไม่ได้รวมใน repo เนื่องจากเป็น dataset ของผู้จัดการแข่งขัน)
+
 
 และต้องมีไฟล์ `accident_risk_model.pkl` กับ `model_columns.pkl`
 ซึ่ง generate ได้จากการรัน `model.ipynb` ตั้งแต่ต้นจนจบ
