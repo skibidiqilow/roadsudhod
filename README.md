@@ -50,6 +50,9 @@ streamlit run app.py
 ในกรณีที่เปิดไม่ได้ (segfault)
 PYTORCH_ENABLE_MPS_FALLBACK=1 OMP_NUM_THREADS=1 streamlit run app.py
 
+(https://thai-road-safety.streamlit.app)(มีปัญหาเรื่อง Resource Limits)
+
+
 หมายเหตุ: ต้องมีไฟล์ `thai_accidental_dataset.csv` วางไว้ในโฟลเดอร์เดียวกัน
 (ไม่ได้รวมใน repo เนื่องจากเป็น dataset ของผู้จัดการแข่งขัน)
 
