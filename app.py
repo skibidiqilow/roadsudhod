@@ -71,6 +71,15 @@ def load_search_model(cause_categories):
     embeddings = model.encode([f"passage: {p}" for p in all_phrases], batch_size=16, show_progress_bar=False)
     return model, phrase_to_category, all_phrases, embeddings
 
+def get_distinctive_cause(causes_series, global_freq, min_count=3):
+    local_counts = causes_series.value_counts()
+    local_counts = local_counts[local_counts >= min_count]  # กันสาเหตุที่เจอแค่ 1-2 ครั้ง (noise)
+    if len(local_counts) == 0:
+        return causes_series.value_counts().idxmax()  # fallback ถ้าทุกอย่างน้อยเกินไป
+    local_props = local_counts / local_counts.sum()
+    lift = local_props / global_freq.reindex(local_props.index)
+    return lift.idxmax()
+
 
 def hybrid_search(query, model, phrase_to_category, all_phrases, embeddings, top_k=3):
     query_embedding = model.encode(f"query: {query}")
@@ -123,7 +132,14 @@ filtered_df = df[
     (df['province'].isin(selected_provinces)) &
     (df['fatalities'] >= min_f) &
     (df['fatalities'] <= max_f)
+
+
 ]
+
+if 'search_filter_cause' not in st.session_state:
+    st.session_state.search_filter_cause = None
+
+
 
 # ── HERO ──
 total_fatalities = int(filtered_df['fatalities'].sum())
@@ -191,12 +207,10 @@ if hero_query:
             confidence = "สูง" if score > 0.85 else "ปานกลาง"
             col = [r1, r2, r3][i]
             with col:
-                st.markdown(f"""
-                <div style="background:#0A1628;border:1px solid {'#F97316' if i==0 else '#0F2040'};
-                            border-radius:8px;padding:10px 12px;text-align:center;margin-bottom:8px">
-                    <div style="font-size:0.78rem;font-weight:600;color:#{'F97316' if i==0 else '475569'};margin-bottom:2px">{category}</div>
-                    <div style="font-size:0.68rem;color:#1E3A5F">ความมั่นใจ: {confidence} · {score:.2f}</div>
-                </div>""", unsafe_allow_html=True)
+                is_active = st.session_state.search_filter_cause == category
+                label = f"{'✓ ' if is_active else ''}{category}\nความมั่นใจ: {confidence} · {score:.2f}"
+                if st.button(label, key=f"hero_btn_{i}", use_container_width=True):
+                    st.session_state.search_filter_cause = category
 
 # ── STATS ROW ──
 st.markdown('<div style="padding:20px 0 0">', unsafe_allow_html=True)
@@ -215,28 +229,43 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 with tab1:
+    if st.session_state.search_filter_cause:
+        badge_col1, badge_col2 = st.columns([5, 1])
+        with badge_col1:
+            st.info(f"🔍 กรองด้วยผลค้นหา: **{st.session_state.search_filter_cause}**")
+        with badge_col2:
+            if st.button("✕ ล้างตัวกรอง", key="clear_search_filter"):
+                st.session_state.search_filter_cause = None
+                st.rerun()
+
+    map_df = filtered_df.copy()
+    if st.session_state.search_filter_cause:
+        map_df = map_df[map_df['cause_clean'] == st.session_state.search_filter_cause]
+
     c_left, c_right = st.columns([3, 1])
     with c_left:
-        st.caption(f"📍 จุดคลิกได้ — คลิกจุดสีบนแผนที่เพื่อดูรายละเอียด")
+        st.caption("📍 จุดคลิกได้ — คลิกจุดสีบนแผนที่เพื่อดูรายละเอียด")
     with c_right:
         weight_mode = st.radio("", ["จำนวน", "ความรุนแรง"], horizontal=True, label_visibility="collapsed")
 
     grid_size_m = st.slider("ขนาดกริด (เมตร)", 500, 5000, 2000, step=500)
     grid_size_deg = grid_size_m / 111000
-    grid_df = filtered_df.copy()
+    grid_df = map_df.copy()
     grid_df['lat_grid'] = (grid_df['latitude'] / grid_size_deg).round() * grid_size_deg
     grid_df['lng_grid'] = (grid_df['longitude'] / grid_size_deg).round() * grid_size_deg
+
+    global_cause_freq = filtered_df['cause_clean'].value_counts(normalize=True)
+
     grid_stats = grid_df.groupby(['lat_grid', 'lng_grid']).agg(
         count=('fatalities', 'count'), total_fatalities=('fatalities', 'sum'),
         avg_fatalities=('fatalities', 'mean'),
-        top_cause=('cause_clean', lambda x: x.value_counts().idxmax()),
+        top_cause=('cause_clean', lambda x: get_distinctive_cause(x, global_cause_freq)),
         top_road=('road_characteristic', lambda x: x.value_counts().idxmax()),
     ).reset_index()
     grid_stats = grid_stats[grid_stats['count'] >= 5]
 
-    m = folium.Map(location=[13.7563, 100.5018], zoom_start=6,
-                   tiles='CartoDB dark_matter')
-    heat_data = filtered_df[['latitude', 'longitude']].values.tolist() if weight_mode == "จำนวน" else filtered_df[['latitude', 'longitude', 'fatalities']].values.tolist()
+    m = folium.Map(location=[13.7563, 100.5018], zoom_start=6, tiles='CartoDB dark_matter')
+    heat_data = map_df[['latitude', 'longitude']].values.tolist() if weight_mode == "จำนวน" else map_df[['latitude', 'longitude', 'fatalities']].values.tolist()
     if heat_data:
         HeatMap(heat_data, radius=8, blur=10).add_to(m)
     marker_cluster = MarkerCluster().add_to(m)
