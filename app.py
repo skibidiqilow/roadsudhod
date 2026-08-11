@@ -73,9 +73,10 @@ def load_search_model(cause_categories):
 
 def get_distinctive_cause(causes_series, global_freq, min_count=3):
     local_counts = causes_series.value_counts()
-    local_counts = local_counts[local_counts >= min_count]  # กันสาเหตุที่เจอแค่ 1-2 ครั้ง (noise)
+    local_counts = local_counts[~local_counts.index.isin(['ไม่ระบุ', 'อื่นๆ', 'อื่นๆ (สาเหตุพบน้อย)'])]
+    local_counts = local_counts[local_counts >= min_count]
     if len(local_counts) == 0:
-        return causes_series.value_counts().idxmax()  # fallback ถ้าทุกอย่างน้อยเกินไป
+        return causes_series.value_counts().idxmax()  # fallback ถ้าเหลือแค่ค่าไม่มีประโยชน์
     local_props = local_counts / local_counts.sum()
     lift = local_props / global_freq.reindex(local_props.index)
     return lift.idxmax()
@@ -255,13 +256,13 @@ with tab1:
     grid_df['lng_grid'] = (grid_df['longitude'] / grid_size_deg).round() * grid_size_deg
 
     global_cause_freq = filtered_df['cause_clean'].value_counts(normalize=True)
+    global_road_freq = filtered_df['road_characteristic'].value_counts(normalize=True)
 
     grid_stats = grid_df.groupby(['lat_grid', 'lng_grid']).agg(
         count=('fatalities', 'count'), total_fatalities=('fatalities', 'sum'),
         avg_fatalities=('fatalities', 'mean'),
         top_cause=('cause_clean', lambda x: get_distinctive_cause(x, global_cause_freq)),
-        top_road=('road_characteristic', lambda x: x.value_counts().idxmax()),
-    ).reset_index()
+        top_road=('road_characteristic', lambda x: get_distinctive_cause(x, global_road_freq)),    ).reset_index()
     grid_stats = grid_stats[grid_stats['count'] >= 5]
 
     m = folium.Map(location=[13.7563, 100.5018], zoom_start=6, tiles='CartoDB dark_matter')
